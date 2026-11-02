@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Regl Takvimim</title>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,700&family=Nunito:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#f6f0f7;--card:#fff;--ink:#2d1b33;--mute:#7a6682;--line:#e8dcec;--per:#c4285f;--perbg:#fbd9e5;--acc:#6a2c7e}
+@media (prefers-color-scheme:dark){:root{--bg:#1a1020;--card:#261830;--ink:#f3e8f6;--mute:#b39ebb;--line:#3b2848;--per:#ff6b9a;--perbg:#5a1f3a;--acc:#d9a3ec}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:400 16px/1.5 Nunito,system-ui,sans-serif;padding:env(safe-area-inset-top,0) 0 env(safe-area-inset-bottom,0)}
+.wrap{max-width:900px;margin:0 auto;padding:20px 16px 40px;display:grid;gap:16px}
+@media(min-width:820px){.wrap{grid-template-columns:1.5fr 1fr}.hero{grid-column:1/-1}}
+h1,h2{font-family:Fraunces,Georgia,serif;margin:0}
+h1{font-size:clamp(28px,6vw,42px);line-height:1.1;color:var(--acc)}
+.hero p{margin:4px 0 0;color:var(--mute)}
+.card{background:var(--card);border:1px solid var(--line);border-radius:20px;padding:18px}
+.now{display:flex;gap:16px;align-items:center}
+.ring{width:96px;height:96px;flex:none}
+.now h2{font-size:22px}.now p{margin:2px 0 0;color:var(--mute)}
+.bar{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+.bar h2{font-size:22px}
+.bar button{width:40px;height:40px;border-radius:50%;border:1px solid var(--line);background:var(--bg);color:var(--ink);font-size:18px;cursor:pointer}
+.grid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px}
+.dow{text-align:center;font-size:13px;color:var(--mute);font-weight:700;padding:4px 0}
+.d{aspect-ratio:1;border-radius:14px;border:2px solid transparent;background:transparent;color:var(--ink);font:600 15px Nunito,sans-serif;cursor:pointer;display:flex;align-items:center;justify-content:center}
+.d:focus-visible,button:focus-visible,input:focus-visible{outline:3px solid var(--acc);outline-offset:2px}
+.d.per{background:var(--perbg);color:var(--per)}
+.d.pred{background:repeating-linear-gradient(135deg,var(--perbg) 0 6px,transparent 6px 10px);color:var(--per)}
+.d.today{border-color:var(--ink)}
+.legend{display:flex;flex-wrap:wrap;gap:6px 14px;margin-top:14px;font-size:14px;color:var(--mute)}
+.legend i{display:inline-block;width:14px;height:14px;border-radius:5px;vertical-align:-2px;margin-right:6px}
+.side{display:grid;gap:16px;align-content:start}
+label{display:block;font-weight:700;font-size:14px;margin:12px 0 4px}
+input[type=date],input[type=number]{width:100%;padding:10px 12px;border-radius:12px;border:1px solid var(--line);background:var(--bg);color:var(--ink);font:600 16px Nunito,sans-serif}
+.row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.list{margin:8px 0 0;padding:0;list-style:none;display:grid;gap:8px}
+.list li{display:flex;justify-content:space-between;gap:8px;padding:10px 12px;border-radius:12px;background:var(--bg)}
+.list b{color:var(--per)}
+.hint{font-size:14px;color:var(--mute);margin:8px 0 0}
+.btns{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+.btn{padding:10px 14px;border-radius:12px;border:1px solid var(--acc);background:transparent;color:var(--acc);font:700 14px Nunito,sans-serif;cursor:pointer}
+.btn.main{background:var(--acc);color:var(--card)}
+</style>
+</head>
+<body>
+<main class="wrap">
+  <header class="hero"><h1>Regl takvimim</h1><p>Regl günlerini işaretle, bir sonrakini önceden gör.</p></header>
+
+  <section class="card" aria-label="Takvim">
+    <div class="bar">
+      <button id="prev" aria-label="Önceki ay">‹</button>
+      <h2 id="title"></h2>
+      <button id="next" aria-label="Sonraki ay">›</button>
+    </div>
+    <div class="grid" id="dows"></div>
+    <div class="grid" id="days"></div>
+    <div class="legend">
+      <span><i style="background:var(--perbg)"></i>Regl</span>
+      <span><i style="background:repeating-linear-gradient(135deg,var(--perbg) 0 4px,transparent 4px 7px);border:1px solid var(--per)"></i>Tahmini regl</span>
+    </div>
+    <p class="hint">Bir güne dokun: regldeydim olarak işaretlenir. Tekrar dokunursan işaret kalkar.</p>
+  </section>
+
+  <aside class="side">
+    <section class="card now" aria-live="polite">
+      <svg class="ring" viewBox="0 0 100 100" aria-hidden="true"><circle cx="50" cy="50" r="42" fill="none" stroke="var(--line)" stroke-width="10"/><circle id="arc" cx="50" cy="50" r="42" fill="none" stroke="var(--per)" stroke-width="10" stroke-linecap="round" transform="rotate(-90 50 50)" stroke-dasharray="0 264"/><text id="dayn" x="50" y="57" text-anchor="middle" font-family="Fraunces,serif" font-size="26" font-weight="700" fill="var(--ink)">–</text></svg>
+      <div><h2 id="phase">–</h2><p id="phasep"></p></div>
+    </section>
+
+    <section class="card">
+      <h2 style="font-size:20px">Yaklaşan reglerim</h2>
+      <ul class="list" id="upcoming"></ul>
+    </section>
+
+    <section class="card">
+      <h2 style="font-size:20px">Ayarlar</h2>
+      <label for="start">Son reglinin ilk günü</label>
+      <input type="date" id="start">
+      <div class="row">
+        <div><label for="cyc">Döngü (gün)</label><input type="number" id="cyc" min="21" max="45"></div>
+        <div><label for="plen">Regl süresi</label><input type="number" id="plen" min="2" max="10"></div>
+      </div>
+      <p class="hint" id="avg"></p>
+    </section>
+
+    <section class="card">
+      <h2 style="font-size:20px">Yedek</h2>
+      <p class="hint" id="bk">Verilerin bu cihazda kayıtlı. Yedek almak telefon değiştirsen ya da tarayıcı verisini silsen bile kaybetmemeni sağlar.</p>
+      <div class="btns">
+        <button class="btn main" id="exp">Yedek indir</button>
+        <button class="btn" id="imp">Yedekten yükle</button>
+        <input type="file" id="file" accept="application/json" hidden>
+      </div>
+    </section>
+  </aside>
+</main>
+
+<script>
+var KEY="regl-v2",DAY=864e5;
+function dn(y,m,d){return Math.round(Date.UTC(y,m,d)/DAY)}
+function fromN(n){var t=new Date(n*DAY);return{y:t.getUTCFullYear(),m:t.getUTCMonth(),d:t.getUTCDate()}}
+function iso(n){var o=fromN(n);return o.y+"-"+String(o.m+1).padStart(2,"0")+"-"+String(o.d).padStart(2,"0")}
+function parse(s){var p=s.split("-");return dn(+p[0],+p[1]-1,+p[2])}
+var now=new Date(),today=dn(now.getFullYear(),now.getMonth(),now.getDate());
+var $=function(i){return document.getElementById(i)};
+var MON=["Ocak","Şubat","Mart","Nisan","Mayıs","Haziran","Temmuz","Ağustos","Eylül","Ekim","Kasım","Aralık"];
+var DOW=["Pzt","Sal","Çar","Per","Cum","Cmt","Paz"];
+$("dows").innerHTML=DOW.map(function(x){return '<div class="dow">'+x+'</div>'}).join("");
+
+var st={start:null,cyc:28,plen:5,logs:[],updated:0,backup:0};
+
+/* ---- Saklama: localStorage + IndexedDB kopyası ---- */
+function lsGet(){try{var r=localStorage.getItem(KEY);return r?JSON.parse(r):null}catch(e){return null}}
+function idb(cb){try{var q=indexedDB.open("regl-db",1);q.onupgradeneeded=function(){q.result.createObjectStore("kv")};q.onsuccess=function(){cb(q.result)};q.onerror=function(){cb(null)}}catch(e){cb(null)}}
+function idbPut(o){idb(function(db){if(!db)return;try{db.transaction("kv","readwrite").objectStore("kv").put(o,KEY)}catch(e){}})}
+function idbGet(cb){idb(function(db){if(!db)return cb(null);try{var r=db.transaction("kv").objectStore("kv").get(KEY);r.onsuccess=function(){cb(r.result||null)};r.onerror=function(){cb(null)}}catch(e){cb(null)}})}
+function save(){st.updated=Date.now();try{localStorage.setItem(KEY,JSON.stringify(st))}catch(e){}idbPut(st)}
+function adopt(o){if(o&&o.updated>st.updated){st=Object.assign(st,o);return true}return false}
+adopt(lsGet());
+idbGet(function(o){if(adopt(o)){try{localStorage.setItem(KEY,JSON.stringify(st))}catch(e){}fillInputs();render()}});
+try{if(navigator.storage&&navigator.storage.persist)navigator.storage.persist()}catch(e){}
+
+/* ---- Hesap ---- */
+function runStarts(){
+  var set={},L=st.logs.map(parse).sort(function(a,b){return a-b}),r=[];
+  L.forEach(function(n){set[n]=1});
+  L.forEach(function(n){if(!set[n-1])r.push(n)});
+  if(st.start){var s=parse(st.start);if(r.indexOf(s)<0)r.push(s)}
+  return r.sort(function(a,b){return a-b});
+}
+function cycLen(){
+  var r=runStarts().slice(-4),d=[];
+  for(var i=1;i<r.length;i++){var x=r[i]-r[i-1];if(x>=15&&x<=60)d.push(x)}
+  return d.length?Math.round(d.reduce(function(a,b){return a+b})/d.length):null;
+}
+function model(){var r=runStarts(),a=r.length?r[r.length-1]:today-9;return{S:a,L:cycLen()||+st.cyc,P:+st.plen}}
+function info(n,m){var idx=(((n-m.S)%m.L)+m.L)%m.L;return{idx:idx,reg:idx<m.P,cyc:Math.floor((n-m.S)/m.L)}}
+
+function render(){
+  var m=model(),logs={};st.logs.forEach(function(s){logs[s]=1});
+  $("title").textContent=MON[view.m]+" "+view.y;
+  var first=dn(view.y,view.m,1),lead=(new Date(Date.UTC(view.y,view.m,1)).getUTCDay()+6)%7,dim=dn(view.y,view.m+1,1)-first,h="";
+  for(var i=0;i<lead;i++)h+="<span></span>";
+  for(var d=1;d<=dim;d++){
+    var n=first+d-1,f=info(n,m),c="d";
+    if(logs[iso(n)])c+=" per";
+    else if(f.reg&&f.cyc>=0&&n>=m.S)c+=(f.cyc==0&&n<=today)?" per":" pred";
+    if(n==today)c+=" today";
+    h+='<button class="'+c+'" data-n="'+n+'" aria-label="'+d+" "+MON[view.m]+'">'+d+"</button>";
+  }
+  $("days").innerHTML=h;
+  var f=info(today,m),next=m.S+m.L*(Math.floor((today-m.S)/m.L)+1);
+  if(f.reg&&today>=m.S){$("phase").textContent="Regldesin";$("phasep").textContent=(f.idx+1)+". gün, kendine iyi bak."}
+  else{var k=next-today;$("phase").textContent=k+" gün kaldı";$("phasep").textContent="Bir sonraki regline."}
+  $("dayn").textContent=f.idx+1;
+  $("arc").setAttribute("stroke-dasharray",(264*(f.idx+1)/m.L)+" 264");
+  var u="";
+  for(var j=0;j<4;j++){var s=next+j*m.L,diff=s-today,o=fromN(s);
+    u+="<li><span>"+o.d+" "+MON[o.m]+" "+o.y+"</span><b>"+(diff==0?"bugün":diff+" gün sonra")+"</b></li>"}
+  $("upcoming").innerHTML=u;
+  var a=cycLen();$("avg").textContent=a?"Kayıtlarına göre ortalama döngün "+a+" gün; tahminler bunu kullanır.":"En az iki regl başlangıcı işaretleyince döngün kendiliğinden hesaplanır.";
+  $("bk").textContent=st.backup?"Son yedek: "+new Date(st.backup).toLocaleDateString("tr-TR")+". Verilerin bu cihazda da kayıtlı.":"Verilerin bu cihazda kayıtlı. Yedek almak telefon değiştirsen ya da tarayıcı verisini silsen bile kaybetmemeni sağlar.";
+}
+function fillInputs(){var r=runStarts();$("start").value=r.length?iso(r[r.length-1]):"";$("cyc").value=st.cyc;$("plen").value=st.plen}
+
+var view=fromN(today);view={y:view.y,m:view.m};
+$("days").onclick=function(e){
+  var b=e.target.closest(".d");if(!b)return;
+  var s=iso(+b.dataset.n),i=st.logs.indexOf(s);
+  if(i>-1)st.logs.splice(i,1);else st.logs.push(s);
+  save();fillInputs();render();
+};
+$("prev").onclick=function(){view.m--;if(view.m<0){view.m=11;view.y--}render()};
+$("next").onclick=function(){view.m++;if(view.m>11){view.m=0;view.y++}render()};
+$("start").onchange=function(){var s=$("start").value;if(s){st.start=s;if(st.logs.indexOf(s)<0)st.logs.push(s);save();render()}};
+$("cyc").onchange=function(){var c=+$("cyc").value;if(c>=21&&c<=45){st.cyc=c;save();render()}};
+$("plen").onchange=function(){var p=+$("plen").value;if(p>=2&&p<=10){st.plen=p;save();render()}};
+
+/* ---- Yedek ---- */
+$("exp").onclick=function(){
+  st.backup=Date.now();save();render();
+  var a=document.createElement("a");
+  a.href=URL.createObjectURL(new Blob([JSON.stringify(st,null,2)],{type:"application/json"}));
+  a.download="regl-yedek-"+iso(today)+".json";document.body.appendChild(a);a.click();a.remove();
+};
+$("imp").onclick=function(){$("file").click()};
+$("file").onchange=function(){
+  var f=this.files[0];if(!f)return;var r=new FileReader();
+  r.onload=function(){try{
+    var o=JSON.parse(r.result);if(!o||!Array.isArray(o.logs))throw 0;
+    var set={};st.logs.concat(o.logs).forEach(function(s){set[s]=1});
+    st.logs=Object.keys(set).sort();
+    if(o.start&&(!st.start||o.start>st.start))st.start=o.start;
+    if(o.cyc)st.cyc=o.cyc;if(o.plen)st.plen=o.plen;
+    save();fillInputs();render();alert("Yedek yüklendi, mevcut kayıtlarla birleştirildi.");
+  }catch(e){alert("Bu dosya geçerli bir regl yedeği değil.")}};
+  r.readAsText(f);this.value="";
+};
+fillInputs();render();
+</script>
+</body>
+</html>
